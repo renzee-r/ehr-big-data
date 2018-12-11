@@ -60,7 +60,7 @@ with open(fname) as f:
 Before you launch the python script, make sure you already launched the elasticsearch which will be listening at port `9200`. 
 
 ```
-# chmod 755 imdb_insert.py
+# chmod 755 ehr_insert.py
 # python ehr_insert.py ehr_samples.csv
 1000 records inserted
 2000 records inserted
