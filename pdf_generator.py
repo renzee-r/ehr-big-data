@@ -25,6 +25,7 @@ with open('data/ehr_samples.csv', 'r', encoding='utf8') as f:
 
         doc = SimpleDocTemplate(filename)
 
+        # print(filename)
         story = [Spacer(1, 1)]
         style = customStyle
         paragraph = Paragraph(row[5], style)
