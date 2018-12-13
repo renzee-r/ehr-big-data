@@ -21,7 +21,7 @@ with open('data/ehr_samples.csv', 'r', encoding='utf8') as f:
     header = next(csv_reader)
     for row in csv_reader:
         specialty = re.sub('[^0-9a-zA-Z]+', '', row[3])
-        filename = "pdf/" + specialty + "_" + row[0] + "_" + row[2] + ".pdf"
+        filename = "data/pdf/" + specialty + "_" + row[0] + "_" + row[2] + ".pdf"
 
         doc = SimpleDocTemplate(filename)
 
