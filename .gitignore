@@ -1,2 +1,5 @@
 data/json/*
 data/pdf/*
+data/image/*
+
+!data/json/.gitkeep 
