@@ -48,45 +48,49 @@ function search() {
 
     var searchText = $('#search-input').val();
 
-    // TODO
-    // Make a call to the elasticsearch server based on the search
-    // text
+    $.ajax({
+        type: "POST",
+        url: "http://169.53.145.101:9200/ehr/_search?q=" + searchText,
+        success: function(data) {
+            var results = data.hits.hits;
+            console.log(results);
+            for (var i = 0; i < Math.min(results.length, 10); i++) {
+                var divElement = document.createElement('div');
+                divElement.setAttribute('class', 'col-lg-3 col-md-4 col-xs-6 thumb');
+            
+                // TODO
+                // Create data out of record instead of hardcoded values
+                var blob = b64toBlob(results[i]._source.image_file, 'image/jpeg', 512);
+                var imgSrc = URL.createObjectURL(blob);
+                var title = results[i]._id
+                var altText = results[i]._source.image_name
+            
+                var aElement = document.createElement('a')
+                aElement.setAttribute('class', 'thumbnail')
+                aElement.setAttribute('href', '#')
+                aElement.setAttribute('data-image-id', '')
+                aElement.setAttribute('data-toggle', 'modal')
+                
+                aElement.setAttribute('data-title', title)
+                aElement.setAttribute('data-image', imgSrc)
+                aElement.setAttribute('data-target', '#image-gallery');
+            
+                var imgElement = document.createElement('img')
+                imgElement.setAttribute('class', 'img-thumbnail')
+                imgElement.setAttribute('src', imgSrc)
+                imgElement.setAttribute('alt', altText)
+            
+                aElement.appendChild(imgElement)
+                divElement.appendChild(aElement)
+                $('#results-row').append(divElement)
+            }
+            
+            loadGallery(true, 'a.thumbnail');
 
-    // TODO
-    // Iterate through n records of the returned results. Construct
-    // the HTML element for each result and append it to page
-    for (var i = 0; i < 7; i++) {
-        var divElement = document.createElement('div');
-        divElement.setAttribute('class', 'col-lg-3 col-md-4 col-xs-6 thumb');
-    
-        // TODO
-        // Create data out of record instead of hardcoded values
-        var blob = b64toBlob(encodedString, 'image/jpeg', 512);
-        var imgSrc = URL.createObjectURL(blob);
-        var title = "Test"
-        var altText = "Alt Text"
-    
-        var aElement = document.createElement('a')
-        aElement.setAttribute('class', 'thumbnail')
-        aElement.setAttribute('href', '#')
-        aElement.setAttribute('data-image-id', '')
-        aElement.setAttribute('data-toggle', 'modal')
-        
-        aElement.setAttribute('data-title', title)
-        aElement.setAttribute('data-image', imgSrc)
-        aElement.setAttribute('data-target', '#image-gallery');
-    
-        var imgElement = document.createElement('img')
-        imgElement.setAttribute('class', 'img-thumbnail')
-        imgElement.setAttribute('src', imgSrc)
-        imgElement.setAttribute('alt', altText)
-    
-        aElement.appendChild(imgElement)
-        divElement.appendChild(aElement)
-        $('#results-row').append(divElement)
-    }
 
-    loadGallery(true, 'a.thumbnail');
+        },
+        dataType: "json"
+    });
 }
 
 
