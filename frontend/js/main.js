@@ -62,8 +62,8 @@ function search() {
                 // Create data out of record instead of hardcoded values
                 var blob = b64toBlob(results[i]._source.image_file, 'image/jpeg', 512);
                 var imgSrc = URL.createObjectURL(blob);
-                var title = results[i]._id
-                var altText = results[i]._source.image_name
+                var title = results[i]._source.image_name
+                var altText = results[i].id
             
                 var aElement = document.createElement('a')
                 aElement.setAttribute('class', 'thumbnail')
