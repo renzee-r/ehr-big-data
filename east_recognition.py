@@ -1,6 +1,6 @@
 # USAGE
-# python text_recognition.py --east frozen_east_text_detection.pb --image examples/images/example_09.jpg
-# python text_recognition.py --east frozen_east_text_detection.pb --image examples/images/example_09.jpg --padding 0.05
+# python east_recognition.py --object frozen_object_text_detection.pb --image examples/images/example_09.jpg
+# python east_recognition.py --object frozen_object_text_detection.pb --image examples/images/example_09.jpg --padding 0.05
 
 # import the necessary packages
 from imutils.object_detection import non_max_suppression
@@ -19,9 +19,6 @@ def decode_predictions(scores, geometry):
 
 	# loop over the number of rows
 	for y in range(0, numRows):
-		# extract the scores (probabilities), followed by the
-		# geometrical data used to derive potential bounding box
-		# coordinates that surround text
 		scoresData = scores[0, 0, y]
 		xData0 = geometry[0, 0, y]
 		xData1 = geometry[0, 1, y]
@@ -36,12 +33,9 @@ def decode_predictions(scores, geometry):
 			if scoresData[x] < args["min_confidence"]:
 				continue
 
-			# compute the offset factor as our resulting feature
-			# maps will be 4x smaller than the input image
+
 			(offsetX, offsetY) = (x * 4.0, y * 4.0)
 
-			# extract the rotation angle for the prediction and
-			# then compute the sin and cosine
 			angle = anglesData[x]
 			cos = np.cos(angle)
 			sin = np.sin(angle)
@@ -55,12 +49,12 @@ def decode_predictions(scores, geometry):
 			# for the text prediction bounding box
 			endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
 			endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
-			startX = int(endX - w)
-			startY = int(endY - h)
+			x_coord = int(endX - w)
+			y_coord = int(endY - h)
 
 			# add the bounding box coordinates and probability score
 			# to our respective lists
-			rects.append((startX, startY, endX, endY))
+			rects.append((x_coord, y_coord, endX, endY))
 			confidences.append(scoresData[x])
 
 	# return a tuple of the bounding boxes and associated confidences
@@ -70,8 +64,8 @@ def decode_predictions(scores, geometry):
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", type=str,
 	help="path to input image")
-ap.add_argument("-east", "--east", type=str,
-	help="path to input EAST text detector")
+ap.add_argument("-object", "--object", type=str,
+	help="path to input object text detector")
 ap.add_argument("-c", "--min-confidence", type=float, default=0.5,
 	help="minimum probability required to inspect a region")
 ap.add_argument("-w", "--width", type=int, default=320,
@@ -97,16 +91,16 @@ rH = origH / float(newH)
 image = cv2.resize(image, (newW, newH))
 (H, W) = image.shape[:2]
 
-# define the two output layer names for the EAST detector model that
+# define the two output layer names for the object detector model that
 # we are interested -- the first is the output probabilities and the
 # second can be used to derive the bounding box coordinates of text
 layerNames = [
 	"feature_fusion/Conv_7/Sigmoid",
 	"feature_fusion/concat_3"]
 
-# load the pre-trained EAST text detector
-print("[INFO] loading EAST text detector...")
-net = cv2.dnn.readNet(args["east"])
+# load the pre-trained object text detector
+print("[INFO] loading object text detector...")
+net = cv2.dnn.readNet(args["object"])
 
 # construct a blob from the image and then perform a forward pass of
 # the model to obtain the two output layer sets
@@ -124,28 +118,28 @@ boxes = non_max_suppression(np.array(rects), probs=confidences)
 results = []
 
 # loop over the bounding boxes
-for (startX, startY, endX, endY) in boxes:
+for (x_coord, y_coord, endX, endY) in boxes:
 	# scale the bounding box coordinates based on the respective
 	# ratios
-	startX = int(startX * rW)
-	startY = int(startY * rH)
+	x_coord = int(x_coord * rW)
+	y_coord = int(y_coord * rH)
 	endX = int(endX * rW)
 	endY = int(endY * rH)
 
 	# in order to obtain a better OCR of the text we can potentially
 	# apply a bit of padding surrounding the bounding box -- here we
 	# are computing the deltas in both the x and y directions
-	dX = int((endX - startX) * args["padding"])
-	dY = int((endY - startY) * args["padding"])
+	dX = int((endX - x_coord) * args["padding"])
+	dY = int((endY - y_coord) * args["padding"])
 
 	# apply padding to each side of the bounding box, respectively
-	startX = max(0, startX - dX)
-	startY = max(0, startY - dY)
+	x_coord = max(0, x_coord - dX)
+	y_coord = max(0, y_coord - dY)
 	endX = min(origW, endX + (dX * 2))
 	endY = min(origH, endY + (dY * 2))
 
 	# extract the actual padded ROI
-	roi = orig[startY:endY, startX:endX]
+	roi = orig[y_coord:endY, x_coord:endX]
 
 	# in order to apply Tesseract v4 to OCR text we must supply
 	# (1) a language, (2) an OEM flag of 4, indicating that the we
@@ -157,7 +151,7 @@ for (startX, startY, endX, endY) in boxes:
 
 	# add the bounding box coordinates and OCR'd text to the list
 	# of results
-	results.append(((startX, startY, endX, endY), text))
+	results.append(((x_coord, y_coord, endX, endY), text))
 
 # sort the results bounding box coordinates from top to bottom
 results = sorted(results, key=lambda r:r[0][1])
@@ -165,22 +159,18 @@ results = sorted(results, key=lambda r:r[0][1])
 print(results)
 
 # loop over the results
-for ((startX, startY, endX, endY), text) in results:
+for ((x_coord, y_coord, endX, endY), text) in results:
 	# display the text OCR'd by Tesseract
 	print("OCR TEXT")
 	print("========")
 	print("{}\n".format(text))
 
-	# strip out non-ASCII text so we can draw the text on the image
-	# using OpenCV, then draw the text and a bounding box surrounding
-	# the text region of the input image
 	text = "".join([c if ord(c) < 128 else "" for c in text]).strip()
 	output = orig.copy()
-	cv2.rectangle(output, (startX, startY), (endX, endY),
+	cv2.rectangle(output, (x_coord, y_coord), (endX, endY),
 		(0, 0, 255), 2)
-	cv2.putText(output, text, (startX, startY - 20),
+	cv2.putText(output, text, (x_coord, y_coord - 20),
 		cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
 	# show the output image
 	cv2.imshow("Text Detection", output)
-	cv2.waitKey(0)

@@ -1,5 +1,5 @@
 # USAGE
-# python text_detection.py --image examples/images/example_09.jpg --east frozen_east_text_detection.pb
+# python east_detect.py --image examples/images/example_09.jpg --object frozen_object_east_detect.pb
 
 # import the necessary packages
 from imutils.object_detection import non_max_suppression
@@ -12,14 +12,12 @@ import cv2
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", type=str,
 	help="path to input image")
-ap.add_argument("-east", "--east", type=str,
-	help="path to input EAST text detector")
+ap.add_argument("-object", "--object", type=str,
+	help="path to input object text detector")
 ap.add_argument("-c", "--min-confidence", type=float, default=0.5,
 	help="minimum probability required to inspect a region")
 ap.add_argument("-w", "--width", type=int, default=320,
 	help="resized image width (should be multiple of 32)")
-ap.add_argument("-e", "--height", type=int, default=320,
-	help="resized image height (should be multiple of 32)")
 args = vars(ap.parse_args())
 
 # load the input image and grab the image dimensions
@@ -37,19 +35,12 @@ rH = H / float(newH)
 image = cv2.resize(image, (newW, newH))
 (H, W) = image.shape[:2]
 
-# define the two output layer names for the EAST detector model that
-# we are interested -- the first is the output probabilities and the
-# second can be used to derive the bounding box coordinates of text
 layerNames = [
 	"feature_fusion/Conv_7/Sigmoid",
 	"feature_fusion/concat_3"]
 
-# load the pre-trained EAST text detector
-print("[INFO] loading EAST text detector...")
-net = cv2.dnn.readNet(args["east"])
+net = cv2.dnn.readNet(args["object"])
 
-# construct a blob from the image and then perform a forward pass of
-# the model to obtain the two output layer sets
 blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
 	(123.68, 116.78, 103.94), swapRB=True, crop=False)
 start = time.time()
@@ -60,18 +51,12 @@ end = time.time()
 # show timing information on text prediction
 print("[INFO] text detection took {:.6f} seconds".format(end - start))
 
-# grab the number of rows and columns from the scores volume, then
-# initialize our set of bounding box rectangles and corresponding
-# confidence scores
 (numRows, numCols) = scores.shape[2:4]
 rects = []
 confidences = []
 
 # loop over the number of rows
 for y in range(0, numRows):
-	# extract the scores (probabilities), followed by the geometrical
-	# data used to derive potential bounding box coordinates that
-	# surround text
 	scoresData = scores[0, 0, y]
 	xData0 = geometry[0, 0, y]
 	xData1 = geometry[0, 1, y]
@@ -104,30 +89,28 @@ for y in range(0, numRows):
 		# the text prediction bounding box
 		endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
 		endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
-		startX = int(endX - w)
-		startY = int(endY - h)
+		x_coordinate = int(endX - w)
+		y_coordinate = int(endY - h)
 
 		# add the bounding box coordinates and probability score to
 		# our respective lists
-		rects.append((startX, startY, endX, endY))
+		rects.append((x_coordinate, y_coordinate, endX, endY))
 		confidences.append(scoresData[x])
 
-# apply non-maxima suppression to suppress weak, overlapping bounding
-# boxes
+
 boxes = non_max_suppression(np.array(rects), probs=confidences)
 
 # loop over the bounding boxes
-for (startX, startY, endX, endY) in boxes:
+for (x_coordinate, y_coordinate, endX, endY) in boxes:
 	# scale the bounding box coordinates based on the respective
 	# ratios
-	startX = int(startX * rW)
-	startY = int(startY * rH)
+	x_coordinate = int(x_coordinate * rW)
+	y_coordinate = int(y_coordinate * rH)
 	endX = int(endX * rW)
 	endY = int(endY * rH)
 
 	# draw the bounding box on the image
-	cv2.rectangle(orig, (startX, startY), (endX, endY), (0, 255, 0), 2)
+	cv2.rectangle(orig, (x_coordinate, y_coordinate), (endX, endY), (0, 255, 0), 2)
 
 # show the output image
 cv2.imshow("Text Detection", orig)
-cv2.waitKey(0)
